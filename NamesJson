@@ -1,0 +1,17 @@
+import requests
+FIFA = [
+  {"player": "Lionel Messi", "team": "FC Barcelona", "overall": "94"},
+  {"player": "Cristiano Ronaldo", "team": "Piemonte Calcio", "overall": "93"},
+  {"player": "Neymar Jr", "team": "Paris Saint-Germain", "overall": "92"}, 
+  {"player": "Eden Hazard", "team": "Real Madrid", "overall": "91"},
+  {"player": "Kevin De Bruyne", "team": "Manchester City", "overall": "91"},
+  {"player": "Jan Oblak", "team": "Athletico de Madrid", "overall": "91"}, 
+  {"player": "Virgil Van Dijk", "team": "Liverpool", "overall": "90"},
+  {"player": "Mohamed Salah", "team": "Liverpool", "overall": "90"},
+  {"player": "Luka Modric", "team": "Real Madrid", "overall": "90"},
+  {"player": "Marc-Andre ter Stegen", "team": "FC Barcelona", "overall": "90"},
+  ]
+
+# Store the dataa
+url = f'https://store.ncss.cloud/story/soccer'
+requests.post(url, json=FIFA)
