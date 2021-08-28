@@ -1,0 +1,179 @@
+from flask import Flask, request, jsonify
+import random
+from string import punctuation
+import re
+import requests
+import json
+
+recent_messages = []
+
+
+
+BOOK = [
+  {
+	"Genre": "Scifi",
+	"Name" : "Ender's Game",
+	"Author": "Orson Scott Card",
+	"Blurb": "the novel presents an imperiled humankind after two conflicts with the Formics, an insectoid alien species they dub the buggers."
+
+
+  },
+  {
+	  "Genre":"Scifi",
+	  "Name":"Dune",
+	  "Author":"Frank Herbert", 
+	  "Blurb":'Set in the distant future amidst a feudal interstellar  society in which various noble houses control planetary fiefs.'
+  },
+  {
+    "Genre":"Scifi",
+	  "Name":"The War of the Worlds",
+	  "Author":"H. G. Wells", 
+	  "Blurb":'The novel is the first-person narrative of both an unnamed protagonist in Surrey and of his younger brother in London as southern England is invaded by Martians.'
+  },
+	{
+		"Genre":"Mystery",
+	  "Name":"Murder on the Orient Express",
+	  "Author":"Agatha Christie", 
+	  "Blurb":'Hercule Poirot, the best detective in the world decides to travel on the Orient Express. The train accidentally gets stopped because of a small avalanche.'
+	},
+	{
+		"Genre":"Mystery",
+	  "Name":"The Girl with the Dragon Tattoo",
+	  "Author":"Stieg Larsson", 
+	  "Blurb":'Harriet Vanger, a scion of one of Sweden’s wealthiest families disappeared over forty years ago. All these years later, her aged uncle continues to seek the truth.'
+	},
+	{
+		"Genre":"Romance",
+	  "Name":"The Rosie Project",
+	  "Author":"Graeme Simsion", 
+	  "Blurb":'The novel centers on genetics professor Don Tillman, who struggles to have a serious relationship with women. With a friend\'s help, he devises a questionnaire to assess the suitability of female partners.'
+	},
+	{
+		"Genre":"Romance",
+	  "Name":"The Wedding Party",
+	  "Author":"Jasmine Guillory", 
+	  "Blurb":'After an “Oops, we made a mistake” kiss, neither one can stop thinking about the other.'
+	}
+]
+
+
+GENRES = []
+for book in BOOK:
+  if book["Genre"] not in GENRES:
+    GENRES.append(book["Genre"])
+    
+def remove_punctuation(word):
+	for character in punctuation:
+		word = word.replace(character, '')
+	return word
+
+def search_by_genre(genre): 
+	found_books = []
+	for book in BOOK:
+		genreList = book['Genre']
+		if remove_punctuation(genreList.lower()) == remove_punctuation(genre.lower()):
+		  found_books.append(book)
+	return found_books
+
+app = Flask(__name__)
+
+@app.route('/rec', methods=['POST'])
+def reco():
+	# Get the message data from NeCSuS
+	global recent_messages
+	recent_messages = []
+	data = request.get_json()
+	author = data.get('author', 'Someone')
+	command = data.get('text', '')
+	
+	for a in GENRES:
+		if a.lower() in command.lower():
+			genre = a
+			pass
+	request_google = requests.get(f'https://www.googleapis.com/books/v1/volumes?q=subject:{genre}')
+	if request_google.status_code != 500:
+		request_google = request_google.text
+		request_google = json.loads(request_google)
+		if request_google["totalItems"] == 0:
+			matching_books = search_by_genre(genre)
+			if matching_books:
+				suggestion = random.choice(matching_books)
+				text = f"Cool! I like {genre} too! I recommend you read {suggestion['Name']} by {suggestion['Author']}! \n Here's some information on it: {suggestion['Blurb']}"
+				recent_messages.append(suggestion)
+
+				# Reply to the message
+				message = {
+					'author': 'reco bot',
+					'text': text
+					
+				}
+
+				# Return the JSON
+				return jsonify(message)
+			else:
+				text = 'Sorry, I\'m not sure about that genre.'
+
+				# Reply to the message
+				message = {
+					'author': 'reco bot',
+					'text': text
+					
+				}
+
+				# Return the JSON
+				return jsonify(message)
+		else:
+			
+			message = {
+					'author': 'reco bot',
+					'text': f'<p><b>Recommended Book: </b>{request_google["items"][0]["volumeInfo"]["title"]} by {request_google["items"][0]["volumeInfo"]["authors"][0]}</p>'
+					
+				}
+
+			# Return the JSON
+			return jsonify(message)
+	else:
+		message = {
+					'author': 'reco bot',
+					'text': 'I don\'t know that genre'
+					
+		}
+
+		# Return the JSON
+		return jsonify(message)
+
+@app.route('/new_rec', methods=['POST'])
+def new_reco():
+	global recent_messages
+	# Get the message data from NeCSuS
+	data = request.get_json()
+	author = data.get('author', 'Someone')
+	command = data.get('text', '')
+	
+	
+	matching_books = search_by_genre(genre)
+	
+	random_suggestion = ""
+	if len(matching_books) > 0:
+		random_suggestion = random.choice(matching_books)
+		
+		if len(recent_messages) != len(matching_books):
+			while random_suggestion["Name"] in str(recent_messages):
+				random_suggestion = random.choice(matching_books)
+			random_suggestion = f"Cool! I like {genre} too! I recommend you read {random_suggestion['Name']} by {random_suggestion['Author']}! \n Here's some information on it: {random_suggestion['Blurb']}"
+			recent_messages.append(random_suggestion)
+		else:
+			random_suggestion = f"Sorry, we have run out of recommendations for {genre}! Maybe read Harry Potter?"
+	else:
+		random_suggestion = 'Sorry, I\'m not sure about that genre.'
+
+	# Reply to the message
+	message = {
+		'author': 'reco bot',
+		'text': random_suggestion
+	}
+
+	# Return the JSON
+	return jsonify(message)
+
+app.run(host='0.0.0.0')
